@@ -1,8 +1,12 @@
 dnl Configure template for pam_sqlite3
 dnl $Id: configure.in,v 1.7 2003/06/22 22:59:45 ek Exp $
 
-AC_INIT(pam_get_pass.c)
+AC_INIT(pam_sqlite3, 1.0.1)
 AC_CONFIG_HEADER(config.h)
+
+AM_INIT_AUTOMAKE
+LT_INIT([disable-static])
+
 
 dnl Checks for libraries.
 AC_CHECK_LIB(pam, pam_get_user)
@@ -12,10 +16,17 @@ AC_CANONICAL_HOST
 AC_HEADER_STDC
 
 dnl check system headers
-AC_CHECK_HEADERS([crypt.h syslog.h unistd.h sys/types.h])
+AC_CHECK_HEADERS([crypt.h syslog.h unistd.h sys/types.h sqlite3.h])
+AC_CHECK_HEADERS_ONCE([security/pam_modules.h security/openpam.h security/pam_misc.h])
 
 dnl Check for library functions
 AC_CHECK_FUNCS([crypt])
+
+AC_ARG_ENABLE(securedir,
+    AS_HELP_STRING([--enable-securedir=DIR],
+        [path to location of PAMs @<:@default=LIBDIR/security@:>@]),
+    SECUREDIR=$enableval, SECUREDIR=$libdir/security)
+AC_SUBST(SECUREDIR)
 
 dnl
 dnl Check for crypt() capabilities
@@ -158,22 +169,8 @@ main() {
 
 AC_CRYPT_CAP
 
-AC_MSG_CHECKING(for SQLite headers)
-for d in /usr/local /usr ; do
-    test -f $d/include/sqlite3.h && {
-        AC_SUBST(SQLITE_INC)
-        SQLITE_INC="-I$d/include"
-        SQLITE_DIR="$d"
-        AC_MSG_RESULT(found in $d/include)
-    }
-done
-
-old_LDFLAGS="$LDFLAGS"
-LDFLAGS="$LDFLAGS -L$SQLITE_DIR/lib"
 AC_CHECK_LIB(sqlite3, sqlite3_open, 
-    [LIBS="$LIBS -lsqlite3"
-     SQLITE_LIB=-L$SQLITE_DIR/lib
-    ], 
+    [LIBS="$LIBS -lsqlite3"],
     [AC_MSG_ERROR(could not determine SQLite library location)])
 LDFLAGS="$old_LDFLAGS"
 
@@ -181,17 +178,6 @@ if test "`uname`" = "Linux" >/dev/null 2>/dev/null; then
     # Debian needs this
     LIBS="$LIBS -lpam_misc"
 fi
-
-AC_MSG_CHECKING(for debug build)
-AC_ARG_ENABLE(debug, 
-[  --enable-debug            Enable debugging routines], 
-[AC_MSG_RESULT(yes)
-    AC_DEFINE(DEBUG)
-    CFLAGS="-g -DDEBUG $CFLAGS"],
-[AC_MSG_RESULT(no); DEBUG=""; DEBUG_LIB=""])
-
-AC_SUBST(LIBS)
-AC_SUBST(SQLITE_LIB)
 
 dnl Checks for typedefs, structures, and compiler characteristics.
 AC_C_CONST
